@@ -475,6 +475,33 @@ function ChapterPage() {
         (item) => item.id === chapterNumber
     );
 
+    const [openArticles, setOpenArticles] = useState<Set<string>>(
+        () => new Set()
+    );
+
+    const toggleArticle = (articleNumber: string) => {
+        setOpenArticles((prev) => {
+            const next = new Set(prev);
+
+            if (next.has(articleNumber)) {
+                next.delete(articleNumber);
+            } else {
+                next.add(articleNumber);
+            }
+
+            return next;
+        });
+    };
+
+    const openAllArticles = () => {
+        setOpenArticles(
+            new Set(chapterArticles.map(([number]) => number))
+        );
+    };
+
+    const closeAllArticles = () => {
+        setOpenArticles(new Set());
+    };
     const chapterArticles = useMemo(() => {
         if (!chapter) return [];
 
@@ -525,81 +552,104 @@ function ChapterPage() {
             </Link>
 
             <header className="chapter-page-header">
-                <h1>{chapter.title}</h1>
+                <div className="chapter-title-row">
+                    <h1>{chapter.title}</h1>
 
-                <p>
-                    제{chapter.start}조부터 제{chapter.end}조
-                </p>
+                    <div className="chapter-toggle-buttons">
+                        <button
+                            type="button"
+                            onClick={openAllArticles}
+                        >
+                            모두 열기
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={closeAllArticles}
+                        >
+                            모두 닫기
+                        </button>
+                    </div>
+                </div>
             </header>
 
             <div className="chapter-articles">
 
-                {chapterArticles.map(
-                    ([number, article]) => (
+                {chapterArticles.map(([number, article]) => {
+                    const isOpen = openArticles.has(number);
+                    return (
                         <article
                             key={number}
-                            className="chapter-article"
+                            className={
+                                isOpen
+                                    ? "chapter-article"
+                                    : "chapter-article closed"
+                            }
                         >
                             <div className="chapter-article-law">
 
                                 <div className="chapter-article-header">
-                                    <h2>
-                                        <span className="chapter-article-number">
-                                            제{number}조
-                                        </span>
+                                    <button
+                                        type="button"
+                                        className="chapter-article-title-button"
+                                        onClick={() => toggleArticle(number)}
+                                        aria-expanded={isOpen}
+                                    >
+                                        <h2>
+                                            <span className="chapter-article-number">
+                                                제{number}조
+                                            </span>
 
-                                        <span className="chapter-article-title">
-                                            【{article.title}】
-                                        </span>
-                                    </h2>
+                                            <span className="chapter-article-title">
+                                                【{article.title}】
+                                            </span>
+                                        </h2>
+                                    </button>
+
                                     <ArticleImportance
                                         articleNumber={number}
                                     />
-
                                 </div>
 
-                                <div className="article-content chapter-article-content">
-                                    {article.content
-                                        .split("\n\n")
-                                        .map((paragraph, index) => {
-                                            const text = paragraph.trim();
+                                {isOpen && (
+                                    <div className="article-content chapter-article-content">
+                                        {article.content
+                                            .split("\n\n")
+                                            .map((paragraph, index) => {
+                                                const text = paragraph.trim();
 
-                                            let levelClass = "normal-level";
+                                                let levelClass = "normal-level";
 
-                                            // ① ② ③ → 항
-                                            if (/^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/.test(text)) {
-                                                levelClass = "paragraph-level";
-                                            }
+                                                if (
+                                                    /^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/.test(text)
+                                                ) {
+                                                    levelClass = "paragraph-level";
+                                                } else if (/^\d+\./.test(text)) {
+                                                    levelClass = "item-level";
+                                                } else if (/^[가-힣]\./.test(text)) {
+                                                    levelClass = "subitem-level";
+                                                }
 
-                                            // 1. 2. 3. → 호
-                                            else if (/^\d+\./.test(text)) {
-                                                levelClass = "item-level";
-                                            }
-
-                                            // 가. 나. 다. → 목
-                                            else if (/^[가-힣]\./.test(text)) {
-                                                levelClass = "subitem-level";
-                                            }
-
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className={`article-paragraph ${levelClass}`}
-                                                >
-                                                    {text}
-                                                </div>
-                                            );
-                                        })}
-                                </div>
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        className={`article-paragraph ${levelClass}`}
+                                                    >
+                                                        {text}
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                )}
 
                             </div>
 
-                            <ArticleMemo
-                                articleNumber={number}
-                            />
+                            {isOpen && (
+                                <ArticleMemo articleNumber={number} />
+                            )}
                         </article>
-                    )
-                )}
+                    );
+                })}
 
             </div>
 

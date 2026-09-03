@@ -771,6 +771,78 @@ button {
 }
 
 /* =========================
+   장별 조문 - 펼치기 / 닫기
+========================= */
+
+.chapter-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chapter-title-row h1 {
+  margin: 0;
+}
+
+.chapter-toggle-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chapter-toggle-buttons button {
+  padding: 7px 10px;
+
+  border: 1px solid #d8e0e9;
+  border-radius: 8px;
+
+  background: #fff;
+  color: #64748b;
+
+  font-size: 12px;
+  font-weight: 650;
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.chapter-toggle-buttons button:hover {
+  background: #f7faff;
+  border-color: #bdcddd;
+  color: #294e73;
+}
+
+
+/* 조문 제목 버튼 */
+
+.chapter-article-title-button {
+  min-width: 0;
+  padding: 0;
+
+  border: none;
+  background: transparent;
+
+  color: inherit;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.chapter-article.closed {
+  grid-template-columns: 1fr;
+  padding: 16px 0;
+}
+
+.chapter-article.closed .chapter-article-header {
+  margin-bottom: 0;
+}
+
+/* =========================
    조문 + 메모 2단 레이아웃
 ========================= */
 
@@ -834,7 +906,7 @@ button {
 
   resize: none;
   overflow: hidden;
-  
+
   outline: none;
 
   transition:
