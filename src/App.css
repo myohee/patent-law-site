@@ -955,6 +955,86 @@ button {
   font-weight: 600;
 }
 
+/* =========================
+   백업 / 복원
+========================= */
+
+.backup-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  margin: 20px 0 28px;
+  padding: 16px 18px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+
+  background: #f8fafc;
+}
+
+.backup-info {
+  min-width: 0;
+}
+
+.backup-title {
+  margin-bottom: 4px;
+
+  color: #26384a;
+
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.backup-time {
+  color: #7b8491;
+
+  font-size: 12px;
+}
+
+.backup-warning {
+  margin-top: 5px;
+
+  color: #9a6b2f;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.backup-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  flex-shrink: 0;
+}
+
+.backup-button {
+  padding: 8px 11px;
+
+  border: 1px solid #d8e0e9;
+  border-radius: 8px;
+
+  background: #ffffff;
+  color: #476786;
+
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 650;
+
+  cursor: pointer;
+}
+
+.backup-button:hover {
+  background: #eef4fb;
+  border-color: #bdcddd;
+}
+
+.backup-restore-button input {
+  display: none;
+}
 
 /* 아이패드/모바일 */
 
@@ -997,5 +1077,15 @@ button {
 
   .article-memo-button {
     font-size: 11px;
+  }
+
+  .backup-controls {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .backup-actions {
+    width: 100%;
   }
 }

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import BackupControls from "../components/BackupControls";
 
 const chapters = [
     { id: 1, title: "제1장 총칙" },
@@ -27,6 +28,8 @@ function ArticleListPage() {
             <header className="article-list-header">
                 <h1>특허법 조문</h1>
             </header>
+
+            <BackupControls />
 
             <div className="chapter-list">
                 {chapters.map((chapter) => (

@@ -94,6 +94,17 @@ function getArticleOrder(articleNumber: string) {
     return Number(main) * 1000 + Number(sub);
 }
 
+const markBackupDirty = () => {
+    localStorage.setItem(
+        "patent-backup-dirty",
+        "true"
+    );
+
+    window.dispatchEvent(
+        new Event("patent-storage-change")
+    );
+};
+
 function ArticleImportance({
     articleNumber,
 }: {
@@ -116,6 +127,7 @@ function ArticleImportance({
             storageKey,
             String(nextImportance)
         );
+        markBackupDirty();
     };
 
     return (
@@ -168,9 +180,33 @@ function ArticleMemo({
         return localStorage.getItem(storageKey) ?? "";
     });
 
+    /*
+      처음 조문을 열었을 때는
+      "변경사항 있음"으로 처리하지 않기 위한 ref
+    */
+    const isFirstRender = useRef(true);
+
     useEffect(() => {
-        localStorage.setItem(storageKey, memo);
+        /*
+          처음 컴포넌트가 열렸을 때는
+          기존 메모를 읽어오기만 하고 저장하지 않음
+        */
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+
+        /*
+          실제로 메모가 변경된 경우에만 저장
+        */
+        localStorage.setItem(
+            storageKey,
+            memo
+        );
+
+        markBackupDirty();
     }, [memo, storageKey]);
+
     useEffect(() => {
         resizeTextarea();
     }, [memo]);
