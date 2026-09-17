@@ -256,6 +256,11 @@ function ArticleMemo({
     const handleKeyDown = (
         event: React.KeyboardEvent<HTMLTextAreaElement>
     ) => {
+        // 한글 조합 중인 Enter/Tab은 직접 처리하지 않음
+        if (event.nativeEvent.isComposing) {
+            return;
+        }
+
         const textarea = event.currentTarget;
 
         const start = textarea.selectionStart;
