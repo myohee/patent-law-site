@@ -1,55 +1,103 @@
 import { useEffect, useState } from "react";
 
-const BACKUP_TIME_KEY = "patent-last-backup-time";
-const BACKUP_DIRTY_KEY = "patent-backup-dirty";
+type LawType = "patent" | "trademark";
+
+type BackupControlsProps = {
+  type: LawType;
+};
 
 type BackupData = {
   version: 1;
+  law: LawType;
   exportedAt: string;
   data: Record<string, string>;
 };
 
-function BackupControls() {
-  const [lastBackupTime, setLastBackupTime] =
-    useState<string | null>(() => {
-      return localStorage.getItem(BACKUP_TIME_KEY);
-    });
+function BackupControls({
+  type,
+}: BackupControlsProps) {
+  /*
+    법별 localStorage 키
 
-  const [isDirty, setIsDirty] = useState(() => {
-    return (
-      localStorage.getItem(BACKUP_DIRTY_KEY) === "true"
-    );
-  });
+    특허법
+    - patent-memo-*
+    - patent-importance-*
+    - patent-last-backup-time
+    - patent-backup-dirty
+
+    상표법
+    - trademark-memo-*
+    - trademark-importance-*
+    - trademark-last-backup-time
+    - trademark-backup-dirty
+  */
+  const BACKUP_TIME_KEY =
+    `${type}-last-backup-time`;
+
+  const BACKUP_DIRTY_KEY =
+    `${type}-backup-dirty`;
+
+  const STORAGE_CHANGE_EVENT =
+    `${type}-storage-change`;
 
   /*
-    메모나 별이 변경되면
-    ChapterPage에서 발생시킨 이벤트를 받아
-    화면의 백업 상태를 갱신
+    현재 법에 해당하는
+    메모/중요도 데이터인지 확인
+  */
+  const isBackupDataKey = (key: string) => {
+    return (
+      key.startsWith(`${type}-memo-`) ||
+      key.startsWith(`${type}-importance-`)
+    );
+  };
+
+  const [lastBackupTime, setLastBackupTime] =
+    useState<string | null>(() => {
+      return localStorage.getItem(
+        BACKUP_TIME_KEY
+      );
+    });
+
+  const [isDirty, setIsDirty] =
+    useState(() => {
+      return (
+        localStorage.getItem(
+          BACKUP_DIRTY_KEY
+        ) === "true"
+      );
+    });
+
+  /*
+    해당 법의 메모/별이 변경되면
+    백업 상태 갱신
   */
   useEffect(() => {
     const handleStorageChange = () => {
       setLastBackupTime(
-        localStorage.getItem(BACKUP_TIME_KEY)
+        localStorage.getItem(
+          BACKUP_TIME_KEY
+        )
       );
 
       setIsDirty(
-        localStorage.getItem(BACKUP_DIRTY_KEY) ===
-          "true"
+        localStorage.getItem(
+          BACKUP_DIRTY_KEY
+        ) === "true"
       );
     };
 
     window.addEventListener(
-      "patent-storage-change",
+      STORAGE_CHANGE_EVENT,
       handleStorageChange
     );
 
     return () => {
       window.removeEventListener(
-        "patent-storage-change",
+        STORAGE_CHANGE_EVENT,
         handleStorageChange
       );
     };
-  }, []);
+  }, [STORAGE_CHANGE_EVENT]);
 
   /*
     백업하기
@@ -57,19 +105,22 @@ function BackupControls() {
   const handleBackup = () => {
     const data: Record<string, string> = {};
 
-    for (let i = 0; i < localStorage.length; i++) {
+    for (
+      let i = 0;
+      i < localStorage.length;
+      i++
+    ) {
       const key = localStorage.key(i);
 
       if (!key) continue;
 
       /*
+        현재 법의
         메모와 중요도만 백업
       */
-      if (
-        key.startsWith("patent-memo-") ||
-        key.startsWith("patent-importance-")
-      ) {
-        const value = localStorage.getItem(key);
+      if (isBackupDataKey(key)) {
+        const value =
+          localStorage.getItem(key);
 
         if (value !== null) {
           data[key] = value;
@@ -79,23 +130,40 @@ function BackupControls() {
 
     const backupData: BackupData = {
       version: 1,
-      exportedAt: new Date().toISOString(),
+      law: type,
+      exportedAt:
+        new Date().toISOString(),
       data,
     };
 
     const blob = new Blob(
-      [JSON.stringify(backupData, null, 2)],
+      [
+        JSON.stringify(
+          backupData,
+          null,
+          2
+        ),
+      ],
       {
         type: "application/json",
       }
     );
 
-    const url = URL.createObjectURL(blob);
+    const url =
+      URL.createObjectURL(blob);
 
-    const link = document.createElement("a");
-    
+    const link =
+      document.createElement("a");
+
     link.href = url;
-    link.download = "patent-law-backup.json";
+
+    /*
+      법별 파일명
+    */
+    link.download =
+      type === "patent"
+        ? "patent-law-backup.json"
+        : "trademark-law-backup.json";
 
     document.body.appendChild(link);
 
@@ -106,7 +174,7 @@ function BackupControls() {
     URL.revokeObjectURL(url);
 
     /*
-      백업 완료 시간 저장
+      해당 법의 백업 완료 시간 저장
     */
     const backupTime =
       new Date().toISOString();
@@ -131,7 +199,8 @@ function BackupControls() {
   const handleRestore = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const file = event.target.files?.[0];
+    const file =
+      event.target.files?.[0];
 
     if (!file) return;
 
@@ -144,37 +213,60 @@ function BackupControls() {
         ) as BackupData;
 
         /*
-          우리가 만든 백업 파일인지 확인
+          기본적인 백업 파일 확인
         */
         if (
           parsed.version !== 1 ||
           !parsed.data ||
-          typeof parsed.data !== "object"
+          typeof parsed.data !==
+            "object"
         ) {
-          alert("올바른 백업 파일이 아닙니다.");
+          alert(
+            "올바른 백업 파일이 아닙니다."
+          );
           return;
         }
 
         /*
-          기존 메모/별 삭제
-
-          → 백업 당시 상태와 정확히 똑같이 복원하기 위해
+          다른 법의 백업 파일을
+          잘못 선택한 경우 방지
         */
-        const keysToRemove: string[] = [];
+        if (
+          parsed.law &&
+          parsed.law !== type
+        ) {
+          alert(
+            type === "patent"
+              ? "상표법 백업 파일입니다. 특허법 백업 파일을 선택해주세요."
+              : "특허법 백업 파일입니다. 상표법 백업 파일을 선택해주세요."
+          );
+
+          return;
+        }
+
+        /*
+          기존의 해당 법 데이터만 삭제
+
+          특허법 복원 →
+          상표법 데이터는 건드리지 않음
+
+          상표법 복원 →
+          특허법 데이터는 건드리지 않음
+        */
+        const keysToRemove: string[] =
+          [];
 
         for (
           let i = 0;
           i < localStorage.length;
           i++
         ) {
-          const key = localStorage.key(i);
+          const key =
+            localStorage.key(i);
 
           if (
             key &&
-            (key.startsWith("patent-memo-") ||
-              key.startsWith(
-                "patent-importance-"
-              ))
+            isBackupDataKey(key)
           ) {
             keysToRemove.push(key);
           }
@@ -185,27 +277,21 @@ function BackupControls() {
         });
 
         /*
-          백업 데이터 복원
+          현재 법의 데이터만 복원
         */
-        Object.entries(parsed.data).forEach(
-          ([key, value]) => {
-            if (
-              key.startsWith("patent-memo-") ||
-              key.startsWith(
-                "patent-importance-"
-              )
-            ) {
-              localStorage.setItem(
-                key,
-                String(value)
-              );
-            }
+        Object.entries(
+          parsed.data
+        ).forEach(([key, value]) => {
+          if (isBackupDataKey(key)) {
+            localStorage.setItem(
+              key,
+              String(value)
+            );
           }
-        );
+        });
 
         /*
-          복원한 시점에서는
-          백업과 현재 데이터가 동일하므로 false
+          복원 완료 시점 저장
         */
         const restoreTime =
           new Date().toISOString();
@@ -221,9 +307,15 @@ function BackupControls() {
         );
 
         alert(
-          "백업을 불러왔습니다!"
+          type === "patent"
+            ? "특허법 백업을 불러왔습니다!"
+            : "상표법 백업을 불러왔습니다!"
         );
 
+        /*
+          복원된 메모/별을
+          바로 화면에 반영
+        */
         window.location.reload();
       } catch {
         alert(
@@ -235,31 +327,36 @@ function BackupControls() {
     reader.readAsText(file);
 
     /*
-      같은 파일을 다시 선택할 수도 있게 초기화
+      같은 파일을 다시 선택할 수 있도록 초기화
     */
     event.target.value = "";
   };
 
-  const formattedBackupTime = lastBackupTime
-    ? new Date(lastBackupTime).toLocaleString(
-        "ko-KR"
-      )
-    : "아직 백업하지 않음";
+  const formattedBackupTime =
+    lastBackupTime
+      ? new Date(
+          lastBackupTime
+        ).toLocaleString("ko-KR")
+      : "아직 백업하지 않음";
 
   return (
     <section className="backup-controls">
       <div className="backup-info">
         <div className="backup-title">
-          데이터 백업
+          {type === "patent"
+            ? "특허법 데이터 백업"
+            : "상표법 데이터 백업"}
         </div>
 
         <div className="backup-time">
-          마지막 백업: {formattedBackupTime}
+          마지막 백업:{" "}
+          {formattedBackupTime}
         </div>
 
         {isDirty && (
           <div className="backup-warning">
-            ⚠ 백업 이후 변경사항이 있습니다.
+            ⚠ 백업 이후 변경사항이
+            있습니다.
           </div>
         )}
       </div>

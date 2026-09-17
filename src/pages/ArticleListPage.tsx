@@ -29,7 +29,7 @@ function ArticleListPage() {
                 <h1>특허법 조문</h1>
             </header>
 
-            <BackupControls />
+            <BackupControls type="patent" />
 
             <div className="chapter-list">
                 {chapters.map((chapter) => (
