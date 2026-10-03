@@ -46,6 +46,12 @@ const chapters = [
         start: 126,
         end: 132,
     },
+        {
+        id: 6_2,
+        title: "제6장의2 특허취소신청",
+        start: 132,
+        end: 132,
+    },
     {
         id: 7,
         title: "제7장 심판",
