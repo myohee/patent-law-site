@@ -46,7 +46,7 @@ const chapters = [
         start: 126,
         end: 132,
     },
-        {
+    {
         id: 6_2,
         title: "제6장의2 특허취소신청",
         start: 132,
@@ -116,12 +116,16 @@ function ArticleImportance({
 }: {
     articleNumber: string;
 }) {
-    const storageKey = `patent-importance-${articleNumber}`;
-    const [importance, setImportance] = useState(() => {
-        const saved = localStorage.getItem(storageKey);
+    const storageKey =
+        `patent-importance-${articleNumber}`;
 
-        return saved ? Number(saved) : 0;
-    });
+    const [importance, setImportance] =
+        useState(() => {
+            const saved =
+                localStorage.getItem(storageKey);
+
+            return saved ? Number(saved) : 0;
+        });
 
     const handleStarClick = (star: number) => {
         const nextImportance =
@@ -133,6 +137,7 @@ function ArticleImportance({
             storageKey,
             String(nextImportance)
         );
+
         markBackupDirty();
     };
 
@@ -146,7 +151,9 @@ function ArticleImportance({
                     key={star}
                     type="button"
                     className="importance-star-button"
-                    onClick={() => handleStarClick(star)}
+                    onClick={() =>
+                        handleStarClick(star)
+                    }
                     aria-label={`중요도 ${star}`}
                 >
                     <span
@@ -169,70 +176,88 @@ function ArticleMemo({
 }: {
     articleNumber: string;
 }) {
-    const storageKey = `patent-memo-${articleNumber}`;
+    const storageKey =
+        `patent-memo-${articleNumber}`;
+
     const textareaRef =
         useRef<HTMLTextAreaElement>(null);
 
-    const resizeTextarea = () => {
-        const textarea = textareaRef.current;
+    /*
+      React state 대신 현재 메모 내용을
+      ref에 보관한다.
 
-        if (!textarea) return;
-
-        textarea.style.height = "auto";
-        textarea.style.height =
-            `${textarea.scrollHeight}px`;
-    };
-    const [memo, setMemo] = useState(() => {
-        return localStorage.getItem(storageKey) ?? "";
-    });
+      입력 중에는 React 렌더링이 발생하지 않는다.
+    */
+    const memoRef = useRef(
+        localStorage.getItem(storageKey) ?? ""
+    );
 
     /*
-      처음 조문을 열었을 때는
-      "변경사항 있음"으로 처리하지 않기 위한 ref
+      한글 조합 상태를 직접 추적한다.
+      iPad Safari에서 keyCode 229가 발생하는 경우도
+      함께 처리한다.
     */
-    const isFirstRender = useRef(true);
+    const isComposingRef = useRef(false);
 
-    useEffect(() => {
-        /*
-          처음 컴포넌트가 열렸을 때는
-          기존 메모를 읽어오기만 하고 저장하지 않음
-        */
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
+    const resizeTextarea = (
+        textarea?: HTMLTextAreaElement
+    ) => {
+        const target =
+            textarea ?? textareaRef.current;
 
-        /*
-          실제로 메모가 변경된 경우에만 저장
-        */
+        if (!target) return;
+
+        target.style.height = "auto";
+        target.style.height =
+            `${target.scrollHeight}px`;
+    };
+
+    /*
+      textarea의 현재 값을 저장한다.
+
+      중요:
+      React state는 변경하지 않는다.
+    */
+    const saveMemo = (
+        value: string,
+        textarea?: HTMLTextAreaElement
+    ) => {
+        memoRef.current = value;
+
         localStorage.setItem(
             storageKey,
-            memo
+            value
         );
 
         markBackupDirty();
-    }, [memo, storageKey]);
 
+        if (textarea) {
+            resizeTextarea(textarea);
+        }
+    };
+
+    /*
+      처음 조문을 열었을 때
+      저장된 메모 크기에 맞춰 textarea 높이 조정
+    */
     useEffect(() => {
         resizeTextarea();
-    }, [memo]);
+    }, []);
 
-    const normalizeNumbering = (text: string) => {
+    const normalizeNumbering = (
+        text: string
+    ) => {
         const lines = text.split("\n");
 
-        /*
-          counters[0] = 최상위 번호
-          counters[1] = 1단계 들여쓰기 번호
-          counters[2] = 2단계 들여쓰기 번호
-          ...
-        */
         const counters: number[] = [];
 
         return lines
             .map((line) => {
-                const match = line.match(/^(\s*)(\d+)\.\s?(.*)$/);
+                const match =
+                    line.match(
+                        /^(\s*)(\d+)\.\s?(.*)$/
+                    );
 
-                // 번호 목록이 아닌 줄은 그대로 둠
                 if (!match) {
                     return line;
                 }
@@ -240,50 +265,119 @@ function ArticleMemo({
                 const indent = match[1];
                 const content = match[3];
 
-                // 공백 2칸 = 한 단계
-                const level = Math.floor(indent.length / 2);
+                const level =
+                    Math.floor(
+                        indent.length / 2
+                    );
 
-                // 현재 단계 카운터가 없으면 생성
-                if (counters[level] === undefined) {
+                if (
+                    counters[level] ===
+                    undefined
+                ) {
                     counters[level] = 0;
                 }
 
-                // 현재 단계 번호 +1
                 counters[level] += 1;
 
-                // 현재보다 아래 단계의 번호는 초기화
-                counters.length = level + 1;
+                counters.length =
+                    level + 1;
 
                 return `${"  ".repeat(level)}${counters[level]}. ${content}`;
             })
             .join("\n");
     };
 
+    /*
+      코드로 textarea 값을 바꿀 때 사용하는 함수.
+
+      setState를 사용하지 않으므로
+      React 렌더링이 발생하지 않는다.
+    */
+    const updateTextarea = (
+        textarea: HTMLTextAreaElement,
+        newValue: string
+    ) => {
+        textarea.value = newValue;
+
+        saveMemo(
+            newValue,
+            textarea
+        );
+    };
+
+    const handleChange = (
+        event: React.ChangeEvent<HTMLTextAreaElement>
+    ) => {
+        const textarea =
+            event.currentTarget;
+
+        /*
+          입력된 값은 ref + localStorage에만 저장.
+          setState 없음.
+        */
+        saveMemo(
+            textarea.value,
+            textarea
+        );
+    };
+
+    const handleBlur = (
+        event: React.FocusEvent<HTMLTextAreaElement>
+    ) => {
+        /*
+          메모칸을 벗어날 때 마지막 값을
+          한 번 더 확실하게 저장한다.
+        */
+        saveMemo(
+            event.currentTarget.value,
+            event.currentTarget
+        );
+    };
+
     const handleKeyDown = (
         event: React.KeyboardEvent<HTMLTextAreaElement>
     ) => {
-        // 한글 조합 중인 Enter/Tab은 직접 처리하지 않음
-        if (event.nativeEvent.isComposing) {
+        /*
+          한글 조합 중에는
+          Enter / Tab 자동처리를 하지 않는다.
+        */
+        if (
+            isComposingRef.current ||
+            event.nativeEvent.isComposing ||
+            event.keyCode === 229
+        ) {
             return;
         }
 
-        const textarea = event.currentTarget;
+        const textarea =
+            event.currentTarget;
 
-        const start = textarea.selectionStart;
+        const currentMemo =
+            textarea.value;
+
+        const start =
+            textarea.selectionStart;
 
         /*
-          현재 커서가 몇 번째 줄에 있는지 계산
+          현재 커서가 몇 번째 줄인지 계산
         */
-        const beforeCursor = memo.slice(0, start);
-        const lineIndex = beforeCursor.split("\n").length - 1;
+        const beforeCursor =
+            currentMemo.slice(0, start);
 
-        const lines = memo.split("\n");
+        const lineIndex =
+            beforeCursor.split("\n").length -
+            1;
 
-        const currentLine = lines[lineIndex] ?? "";
+        const lines =
+            currentMemo.split("\n");
+
+        const currentLine =
+            lines[lineIndex] ?? "";
 
         const numberedMatch =
-            currentLine.match(/^(\s*)(\d+)\.\s?(.*)$/);
-
+            currentLine.match(
+                /^(\s*)(\d+)\.\s?(.*)$/
+            );
 
         /* =========================
            Tab / Shift + Tab
@@ -296,23 +390,32 @@ function ArticleMemo({
               번호가 있는 줄
             */
             if (numberedMatch) {
-                const indent = numberedMatch[1];
-                const content = numberedMatch[3];
+                const indent =
+                    numberedMatch[1];
+
+                const content =
+                    numberedMatch[3];
 
                 const currentLevel =
-                    Math.floor(indent.length / 2);
+                    Math.floor(
+                        indent.length / 2
+                    );
 
                 /*
                   Shift + Tab
                   → 한 단계 위로
                 */
                 if (event.shiftKey) {
-                    if (currentLevel === 0) {
+                    if (
+                        currentLevel === 0
+                    ) {
                         return;
                     }
 
                     const newIndent =
-                        "  ".repeat(currentLevel - 1);
+                        "  ".repeat(
+                            currentLevel - 1
+                        );
 
                     lines[lineIndex] =
                         `${newIndent}1. ${content}`;
@@ -324,49 +427,68 @@ function ArticleMemo({
                 */
                 else {
                     const newIndent =
-                        "  ".repeat(currentLevel + 1);
+                        "  ".repeat(
+                            currentLevel + 1
+                        );
 
                     lines[lineIndex] =
                         `${newIndent}1. ${content}`;
                 }
 
                 const newMemo =
-                    normalizeNumbering(lines.join("\n"));
+                    normalizeNumbering(
+                        lines.join("\n")
+                    );
 
-                setMemo(newMemo);
+                updateTextarea(
+                    textarea,
+                    newMemo
+                );
 
                 /*
-                  번호가 바뀐 뒤에도
-                  같은 줄 끝에 커서를 유지
+                  번호 변경 후에도
+                  같은 줄 끝에 커서 유지
                 */
                 requestAnimationFrame(() => {
-                    const newLines = newMemo.split("\n");
+                    const newLines =
+                        newMemo.split("\n");
 
                     let newPosition = 0;
 
-                    for (let i = 0; i < lineIndex; i++) {
+                    for (
+                        let i = 0;
+                        i < lineIndex;
+                        i++
+                    ) {
                         newPosition +=
-                            newLines[i].length + 1;
+                            newLines[i].length +
+                            1;
                     }
 
                     newPosition +=
-                        newLines[lineIndex].length;
+                        newLines[
+                            lineIndex
+                        ].length;
 
                     textarea.selectionStart =
-                        textarea.selectionEnd =
+                        newPosition;
+
+                    textarea.selectionEnd =
                         newPosition;
                 });
 
                 return;
             }
 
-
             /*
               번호 없는 일반 문장
             */
-
             if (event.shiftKey) {
-                if (currentLine.startsWith("  ")) {
+                if (
+                    currentLine.startsWith(
+                        "  "
+                    )
+                ) {
                     lines[lineIndex] =
                         currentLine.slice(2);
                 }
@@ -378,72 +500,113 @@ function ArticleMemo({
             const newMemo =
                 lines.join("\n");
 
-            setMemo(newMemo);
+            updateTextarea(
+                textarea,
+                newMemo
+            );
+
+            requestAnimationFrame(() => {
+                const newLines =
+                    newMemo.split("\n");
+
+                let newPosition = 0;
+
+                for (
+                    let i = 0;
+                    i < lineIndex;
+                    i++
+                ) {
+                    newPosition +=
+                        newLines[i].length +
+                        1;
+                }
+
+                newPosition +=
+                    newLines[
+                        lineIndex
+                    ].length;
+
+                textarea.selectionStart =
+                    newPosition;
+
+                textarea.selectionEnd =
+                    newPosition;
+            });
 
             return;
         }
-
 
         /* =========================
            Enter
         ========================= */
 
         if (event.key === "Enter") {
-
             if (!numberedMatch) {
                 return;
             }
 
             event.preventDefault();
 
-            const indent = numberedMatch[1];
-            const content = numberedMatch[3];
+            const indent =
+                numberedMatch[1];
 
+            const content =
+                numberedMatch[3];
 
             /*
               내용 없는 번호에서 Enter
               → 목록 종료
-        
-              예:
+
               3. |
               Enter
-        
+
               →
+
               |
             */
-
             if (content.trim() === "") {
                 lines[lineIndex] = "";
 
                 const newMemo =
-                    normalizeNumbering(lines.join("\n"));
+                    normalizeNumbering(
+                        lines.join("\n")
+                    );
 
-                setMemo(newMemo);
+                updateTextarea(
+                    textarea,
+                    newMemo
+                );
 
                 requestAnimationFrame(() => {
-                    const newLines = newMemo.split("\n");
+                    const newLines =
+                        newMemo.split("\n");
 
                     let newPosition = 0;
 
-                    for (let i = 0; i < lineIndex; i++) {
+                    for (
+                        let i = 0;
+                        i < lineIndex;
+                        i++
+                    ) {
                         newPosition +=
-                            newLines[i].length + 1;
+                            newLines[i].length +
+                            1;
                     }
 
                     textarea.selectionStart =
-                        textarea.selectionEnd =
+                        newPosition;
+
+                    textarea.selectionEnd =
                         newPosition;
                 });
 
                 return;
             }
 
-
             /*
               일반 Enter
               → 같은 단계에 다음 번호 생성
             */
-
             const newLine =
                 `${indent}1. `;
 
@@ -454,9 +617,14 @@ function ArticleMemo({
             );
 
             const newMemo =
-                normalizeNumbering(lines.join("\n"));
+                normalizeNumbering(
+                    lines.join("\n")
+                );
 
-            setMemo(newMemo);
+            updateTextarea(
+                textarea,
+                newMemo
+            );
 
             requestAnimationFrame(() => {
                 const newLines =
@@ -464,26 +632,34 @@ function ArticleMemo({
 
                 let newPosition = 0;
 
-                for (let i = 0; i <= lineIndex; i++) {
+                for (
+                    let i = 0;
+                    i <= lineIndex;
+                    i++
+                ) {
                     newPosition +=
-                        newLines[i].length + 1;
+                        newLines[i].length +
+                        1;
                 }
 
-                /*
-                  새 줄의
-                  "  2. "까지 이동
-                */
                 const nextLine =
-                    newLines[lineIndex + 1];
+                    newLines[
+                        lineIndex + 1
+                    ];
 
                 const prefixMatch =
-                    nextLine.match(/^(\s*\d+\.\s)/);
+                    nextLine.match(
+                        /^(\s*\d+\.\s)/
+                    );
 
                 newPosition +=
-                    prefixMatch?.[1].length ?? 0;
+                    prefixMatch?.[1]
+                        .length ?? 0;
 
                 textarea.selectionStart =
-                    textarea.selectionEnd =
+                    newPosition;
+
+                textarea.selectionEnd =
                     newPosition;
             });
 
@@ -496,15 +672,52 @@ function ArticleMemo({
             <textarea
                 ref={textareaRef}
                 className="article-memo-textarea"
-                value={memo}
-                onChange={(event) =>
-                    setMemo(event.target.value)
+
+                /*
+                  핵심 변경점:
+                  value={memo}가 아니라 defaultValue 사용
+
+                  → uncontrolled textarea
+                  → 입력할 때 React 렌더링 없음
+                */
+                defaultValue={
+                    memoRef.current
                 }
-                onKeyDown={handleKeyDown}
+
+                onChange={
+                    handleChange
+                }
+
+                onKeyDown={
+                    handleKeyDown
+                }
+
+                onBlur={
+                    handleBlur
+                }
+
+                onCompositionStart={() => {
+                    isComposingRef.current =
+                        true;
+                }}
+
+                onCompositionEnd={(
+                    event
+                ) => {
+                    isComposingRef.current =
+                        false;
+
+                    saveMemo(
+                        event.currentTarget
+                            .value,
+                        event.currentTarget
+                    );
+                }}
+
                 placeholder="메모"
             />
 
-            {memo.trim() && (
+            {memoRef.current.trim() && (
                 <div className="article-memo-status">
                     자동 저장됨
                 </div>
@@ -516,24 +729,70 @@ function ArticleMemo({
 function ChapterPage() {
     const { chapterId } = useParams();
 
-    const chapterNumber = Number(chapterId);
+    const chapterNumber =
+        Number(chapterId);
 
-    const chapter = chapters.find(
-        (item) => item.id === chapterNumber
-    );
+    const chapter =
+        chapters.find(
+            (item) =>
+                item.id ===
+                chapterNumber
+        );
 
-    const [openArticles, setOpenArticles] = useState<Set<string>>(
+    const [
+        openArticles,
+        setOpenArticles,
+    ] = useState<Set<string>>(
         () => new Set()
     );
 
-    const toggleArticle = (articleNumber: string) => {
-        setOpenArticles((prev) => {
-            const next = new Set(prev);
+    const chapterArticles =
+        useMemo(() => {
+            if (!chapter) {
+                return [];
+            }
 
-            if (next.has(articleNumber)) {
-                next.delete(articleNumber);
+            return Object.entries(
+                articleData
+            )
+                .filter(([number]) => {
+                    const mainNumber =
+                        getMainArticleNumber(
+                            number
+                        );
+
+                    return (
+                        mainNumber >=
+                            chapter.start &&
+                        mainNumber <=
+                            chapter.end
+                    );
+                })
+                .sort(([a], [b]) => {
+                    return (
+                        getArticleOrder(a) -
+                        getArticleOrder(b)
+                    );
+                });
+        }, [chapter]);
+
+    const toggleArticle = (
+        articleNumber: string
+    ) => {
+        setOpenArticles((prev) => {
+            const next =
+                new Set(prev);
+
+            if (
+                next.has(articleNumber)
+            ) {
+                next.delete(
+                    articleNumber
+                );
             } else {
-                next.add(articleNumber);
+                next.add(
+                    articleNumber
+                );
             }
 
             return next;
@@ -542,38 +801,27 @@ function ChapterPage() {
 
     const openAllArticles = () => {
         setOpenArticles(
-            new Set(chapterArticles.map(([number]) => number))
+            new Set(
+                chapterArticles.map(
+                    ([number]) =>
+                        number
+                )
+            )
         );
     };
 
     const closeAllArticles = () => {
-        setOpenArticles(new Set());
+        setOpenArticles(
+            new Set()
+        );
     };
-    const chapterArticles = useMemo(() => {
-        if (!chapter) return [];
-
-        return Object.entries(articleData)
-            .filter(([number]) => {
-                const mainNumber =
-                    getMainArticleNumber(number);
-
-                return (
-                    mainNumber >= chapter.start &&
-                    mainNumber <= chapter.end
-                );
-            })
-            .sort(([a], [b]) => {
-                return (
-                    getArticleOrder(a) -
-                    getArticleOrder(b)
-                );
-            });
-    }, [chapter]);
 
     if (!chapter) {
         return (
             <main className="article-list-page">
-                <p>존재하지 않는 장입니다.</p>
+                <p>
+                    존재하지 않는 장입니다.
+                </p>
 
                 <Link to="/articles">
                     ← 장 목록으로
@@ -582,15 +830,35 @@ function ChapterPage() {
         );
     }
 
+    /*
+      6장의2처럼 id가 연속된 정수가 아니므로
+      chapterNumber를 배열 index로 쓰지 않고
+      현재 chapter의 실제 위치를 찾는다.
+    */
+    const chapterIndex =
+        chapters.findIndex(
+            (item) =>
+                item.id ===
+                chapter.id
+        );
+
     const previousChapter =
-        chapters[chapterNumber - 2];
+        chapterIndex > 0
+            ? chapters[
+                  chapterIndex - 1
+              ]
+            : undefined;
 
     const nextChapter =
-        chapters[chapterNumber];
+        chapterIndex <
+        chapters.length - 1
+            ? chapters[
+                  chapterIndex + 1
+              ]
+            : undefined;
 
     return (
         <main className="article-list-page">
-
             <Link
                 to="/articles"
                 className="chapter-back-link"
@@ -600,19 +868,25 @@ function ChapterPage() {
 
             <header className="chapter-page-header">
                 <div className="chapter-title-row">
-                    <h1>{chapter.title}</h1>
+                    <h1>
+                        {chapter.title}
+                    </h1>
 
                     <div className="chapter-toggle-buttons">
                         <button
                             type="button"
-                            onClick={openAllArticles}
+                            onClick={
+                                openAllArticles
+                            }
                         >
                             모두 열기
                         </button>
 
                         <button
                             type="button"
-                            onClick={closeAllArticles}
+                            onClick={
+                                closeAllArticles
+                            }
                         >
                             모두 닫기
                         </button>
@@ -621,92 +895,147 @@ function ChapterPage() {
             </header>
 
             <div className="chapter-articles">
+                {chapterArticles.map(
+                    ([
+                        number,
+                        article,
+                    ]) => {
+                        const isOpen =
+                            openArticles.has(
+                                number
+                            );
 
-                {chapterArticles.map(([number, article]) => {
-                    const isOpen = openArticles.has(number);
-                    return (
-                        <article
-                            key={number}
-                            className={
-                                isOpen
-                                    ? "chapter-article"
-                                    : "chapter-article closed"
-                            }
-                        >
-                            <div className="chapter-article-law">
+                        return (
+                            <article
+                                key={
+                                    number
+                                }
+                                className={
+                                    isOpen
+                                        ? "chapter-article"
+                                        : "chapter-article closed"
+                                }
+                            >
+                                <div className="chapter-article-law">
+                                    <div className="chapter-article-header">
+                                        <button
+                                            type="button"
+                                            className="chapter-article-title-button"
+                                            onClick={() =>
+                                                toggleArticle(
+                                                    number
+                                                )
+                                            }
+                                            aria-expanded={
+                                                isOpen
+                                            }
+                                        >
+                                            <h2>
+                                                <span className="chapter-article-number">
+                                                    제
+                                                    {
+                                                        number
+                                                    }
+                                                    조
+                                                </span>
 
-                                <div className="chapter-article-header">
-                                    <button
-                                        type="button"
-                                        className="chapter-article-title-button"
-                                        onClick={() => toggleArticle(number)}
-                                        aria-expanded={isOpen}
-                                    >
-                                        <h2>
-                                            <span className="chapter-article-number">
-                                                제{number}조
-                                            </span>
+                                                <span className="chapter-article-title">
+                                                    【
+                                                    {
+                                                        article.title
+                                                    }
+                                                    】
+                                                </span>
+                                            </h2>
+                                        </button>
 
-                                            <span className="chapter-article-title">
-                                                【{article.title}】
-                                            </span>
-                                        </h2>
-                                    </button>
+                                        <ArticleImportance
+                                            articleNumber={
+                                                number
+                                            }
+                                        />
+                                    </div>
 
-                                    <ArticleImportance
-                                        articleNumber={number}
-                                    />
+                                    {isOpen && (
+                                        <div className="article-content chapter-article-content">
+                                            {article.content
+                                                .split(
+                                                    "\n\n"
+                                                )
+                                                .map(
+                                                    (
+                                                        paragraph,
+                                                        index
+                                                    ) => {
+                                                        const text =
+                                                            paragraph.trim();
+
+                                                        let levelClass =
+                                                            "normal-level";
+
+                                                        if (
+                                                            /^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/.test(
+                                                                text
+                                                            )
+                                                        ) {
+                                                            levelClass =
+                                                                "paragraph-level";
+                                                        } else if (
+                                                            /^\d+\./.test(
+                                                                text
+                                                            )
+                                                        ) {
+                                                            levelClass =
+                                                                "item-level";
+                                                        } else if (
+                                                            /^[가-힣]\./.test(
+                                                                text
+                                                            )
+                                                        ) {
+                                                            levelClass =
+                                                                "subitem-level";
+                                                        }
+
+                                                        return (
+                                                            <div
+                                                                key={
+                                                                    index
+                                                                }
+                                                                className={`article-paragraph ${levelClass}`}
+                                                            >
+                                                                {
+                                                                    text
+                                                                }
+                                                            </div>
+                                                        );
+                                                    }
+                                                )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {isOpen && (
-                                    <div className="article-content chapter-article-content">
-                                        {article.content
-                                            .split("\n\n")
-                                            .map((paragraph, index) => {
-                                                const text = paragraph.trim();
-
-                                                let levelClass = "normal-level";
-
-                                                if (
-                                                    /^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/.test(text)
-                                                ) {
-                                                    levelClass = "paragraph-level";
-                                                } else if (/^\d+\./.test(text)) {
-                                                    levelClass = "item-level";
-                                                } else if (/^[가-힣]\./.test(text)) {
-                                                    levelClass = "subitem-level";
-                                                }
-
-                                                return (
-                                                    <div
-                                                        key={index}
-                                                        className={`article-paragraph ${levelClass}`}
-                                                    >
-                                                        {text}
-                                                    </div>
-                                                );
-                                            })}
-                                    </div>
+                                    <ArticleMemo
+                                        articleNumber={
+                                            number
+                                        }
+                                    />
                                 )}
-
-                            </div>
-
-                            {isOpen && (
-                                <ArticleMemo articleNumber={number} />
-                            )}
-                        </article>
-                    );
-                })}
-
+                            </article>
+                        );
+                    }
+                )}
             </div>
 
             <nav className="chapter-bottom-nav">
-
                 {previousChapter ? (
                     <Link
                         to={`/articles/${previousChapter.id}`}
                     >
-                        ← {previousChapter.title}
+                        ←{" "}
+                        {
+                            previousChapter.title
+                        }
                     </Link>
                 ) : (
                     <span />
@@ -716,12 +1045,13 @@ function ChapterPage() {
                     <Link
                         to={`/articles/${nextChapter.id}`}
                     >
-                        {nextChapter.title} →
+                        {
+                            nextChapter.title
+                        }{" "}
+                        →
                     </Link>
                 )}
-
             </nav>
-
         </main>
     );
 }
