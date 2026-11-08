@@ -6,6 +6,8 @@ import ArticleListPage from "./pages/ArticleListPage";
 import ChapterPage from "./pages/ChapterPage";
 import TrademarkArticleListPage from "./pages/TrademarkArticleListPage";
 import TrademarkChapterPage from "./pages/TrademarkChapterPage";
+import DesignArticleListPage from "./pages/DesignArticleListPage";
+import DesignChapterPage from "./pages/DesignChapterPage";
 
 import "./App.css";
 
