@@ -35,6 +35,16 @@ function App() {
           path="/trademark/articles/:chapterId"
           element={<TrademarkChapterPage />}
         />
+
+        <Route
+          path="/design/articles"
+          element={<DesignArticleListPage />}
+        />
+
+        <Route
+          path="/design/articles/:chapterId"
+          element={<DesignChapterPage />}
+        />
       </Routes>
     </BrowserRouter>
   );
